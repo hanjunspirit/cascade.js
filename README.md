@@ -57,7 +57,7 @@ When we update the size state, we have to update the color to maintain consisten
 
 - **name** : The name of the state
 - **dependencies** : Dependencies the state depends
-- **factory** : Takes the values of its dependencies and return the definition of its value(Cascade.types.*)
+- **factory** : Takes the values of its dependencies. Return the definition of its value(Cascade.types.*)
 
 
 ### Cascade.types.*
@@ -128,3 +128,25 @@ Return the value the state.
 Return all the states values.
 
 
+### cascadeObj.derive(name, dependencies, factory);
+
+Define a derived data.
+
+- name : The name of the derived data.
+- dependencies : Dependencies the state depends.
+- factory : Takes the values of its dependencies. Return the derived data value.
+
+For example
+
+```javascript
+
+	cascadeObj.derive('derivedData', ['size', 'color'], function(size, color){
+		return 'The size is ' + size + ', the color is ' + color;
+	});
+	
+	console.log(cascadeObj.getState('derivedData')); //The size is M, the color is Green
+
+```
+
+- You can use cascadeObj.getState(name) to get the value of the derived data.
+- You can't use cascadeObj.setState(name) to set the value of the derived data.It should only be computed by its dependencies values.
