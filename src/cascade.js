@@ -415,7 +415,7 @@ class Cascade extends Transaction {
 		
 		var oldValue = this.states[name];
 		
-		this.states[name] = typesSetter[definition.type].apply(null, [value, oldValue].concat(definition.range));
+		this.states[name] = definition.setter(value, oldValue);
 		
 		this.batchedUpdate(() => {
 			if(oldValue !== this.states[name]){
@@ -479,12 +479,8 @@ class Cascade extends Transaction {
 			//compute definition field
 			var definition = stateObj.definition = typeof stateObj.factory !== 'function' ? Cascade.types.Fixed(stateObj.factory) : stateObj.factory.apply(null, depsValue);
 			
-			if(!definition){
+			if(!(definition instanceof DataType)){
 				error(`Empty definition in state ${name}`);
-			}
-			
-			if(!typesAdapter[definition.type]){
-				error(`Invalid definition in state ${name}`);
 			}
 			
 			//For uninitialized state with an initialFactory, compute its initial value
@@ -500,13 +496,13 @@ class Cascade extends Transaction {
 					var newValue = stateObj.initialFactory;
 				}
 				
-				this.states[name] = typesSetter[definition.type].apply(null, [newValue, undefined].concat(definition.range));
+				this.states[name] = definition.setter(newValue);
 				
 				delete stateObj.initialDeps;
 				delete stateObj.initialFactory;
 			}else{
 				//For uninitialized state without an initialFactory or initialized value
-				this.states[name] = typesAdapter[definition.type].apply(null, [this.states[name]].concat(definition.range));
+				this.states[name] = definition.setter(this.states[name]);
 			}
 			
 			//From dirty to clean
@@ -636,69 +632,51 @@ function error(tips){
 	throw new Error(tips);
 }
 
-Cascade.CascadeDataState = CascadeDataState;
-Cascade.CascadeDataDerive = CascadeDataDerive;
+class DataType {
+	constructor(){}
+	adapter(){}
+	setter(){}
+}
 
-var _cid = 1;
-
-var TYPES = {
-    Fixed : 0
-};
-
-Cascade.types = {};
-var typesAdapter = {};
-var typesSetter = {};
-
-Cascade.extendDataType = function(name, adapter, setter){
-	var id = TYPES[name] = _cid++;
-	
-	typesAdapter[id] = adapter;
-	
-	typesSetter[id] = setter;
-	
-	Cascade.types[name] = function(){
-		return {
-			type : TYPES[name],
-			range : Array.prototype.slice.apply(arguments)
+Cascade.extendDataType = function(onSetValue){
+	var newDataType = class extends DataType {
+		constructor(...args){
+			super();
+			this.args = args;
+		}
+		setter(newValue, oldValue){
+			return onSetValue(newValue, oldValue, ...this.args);
 		}
 	}
+	
+	return function(...args){
+		return new newDataType(...args);
+	}
 }
+
+//Some built in types
+Cascade.types = {};
 
 /**
  * Read only value
  */
-Cascade.extendDataType('Fixed', (currentValue, theOnlyValue) => {
-	return theOnlyValue;
-}, (newValue, oldValue, theOnlyValue) => {
-	return theOnlyValue;
-});
+Cascade.types.Fixed = Cascade.extendDataType((valueToSet, oldValue, theOnlyValue) => theOnlyValue);
 
 /**
  * Read/Write value
  */
-Cascade.extendDataType('Any', (currentValue, theOnlyValue) => {
-	return theOnlyValue;
-}, (newValue, oldValue, theOnlyValue) => {
-	return newValue;
-});
+Cascade.types.Any = Cascade.extendDataType((valueToSet, oldValue) => valueToSet);
 
-
-Cascade.extendDataType('Enum', (currentValue, range) => {
-	if(!Array.isArray(range) || !(range.length > 0)){
-		error('Invald definition for Enum value');
-	}
-	
-	if(range.indexOf(currentValue) !== -1){
-		return currentValue;
-	}
-	return range[0];
-}, (newValue, oldValue, range) => {
-	if(range.indexOf(newValue) !== -1){
-		return newValue;
-	}else if(range.indexOf(oldValue) !== -1){
+/**
+ * Enum value
+ */
+Cascade.types.Enum = Cascade.extendDataType((valueToSet, oldValue, enumList) => {
+	if(enumList.indexOf(valueToSet) !== -1){
+		return valueToSet;
+	}else if(oldValue !== undefined){
 		return oldValue;
 	}else{
-		return range[0];
+		return enumList[0];
 	}
 });
 
