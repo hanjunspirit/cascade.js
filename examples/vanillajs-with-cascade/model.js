@@ -1,6 +1,7 @@
 'use strict';
-var Cascade = require('../../src/cascade');
-var Ingerger = require('../../src/types/interger');
+var Cascade = require('../../');
+//var Cascade = require('../../dist/cascade');
+var Interger = require('../../dist/types/interger');
 
 var cascadeObj = module.exports = new Cascade();
 
@@ -30,6 +31,6 @@ cascadeObj.define('color', ['allowedColors'], allowedColors => {
 cascadeObj.derive('stock', ['config', 'size', 'color'], (config, size, color) => config[size][color]);
 
 cascadeObj.define('quantity', ['stock'], stock => {
-	return Ingerger(1, stock);
+	return Interger(1, stock);
 });
 

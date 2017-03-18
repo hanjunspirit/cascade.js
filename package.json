@@ -1,6 +1,6 @@
 {
   "name": "cascade.js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Cascade.js is a Javascript library for managing **relational but not derived** states.",
   "main": "./dist/cascade.js",
   "directories": {
@@ -15,6 +15,7 @@
     "browserify": "^14.1.0",
     "del": "^2.2.2",
     "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
     "gulp-rename": "^1.2.2",
     "gulp-uglify": "^2.1.0",
     "jest": "^19.0.2",
@@ -36,6 +37,8 @@
   },
   "homepage": "https://github.com/hanjunspirit/cascade.js#readme",
   "jest": {
-    "testMatch": ["**/__test__/**/*.js"]
+    "testMatch": [
+      "**/__test__/**/*.js"
+    ]
   }
 }

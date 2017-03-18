@@ -1,7 +1,7 @@
 var Cascade = require('../cascade');
 function onSetValue(valueToSet, oldValue, min, max){
 	if(typeof valueToSet === 'number'){
-		number = Math.round(valueToSet);
+		var number = Math.round(valueToSet);
 		if(number <= min){
 			return min;
 		}
