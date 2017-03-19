@@ -13,21 +13,22 @@ cascadeObj.define('urlParams', null, {
 	size : 'M'
 });
 
-cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.Promise(resolve => {
+var sizeFromUrlFactory = jest.fn().mockImplementation(urlParams => Cascade.Promise(resolve => {
     setTimeout(() => {
         resolve(urlParams.size);
-    }, 1000);
-}));
+    }, 1500);
+}))
+cascadeObj.derive('sizeFromUrl', ['urlParams'], sizeFromUrlFactory);
 
 cascadeObj.define('size', ['allowedSizes'], allowedSizes => Cascade.types.Enum(allowedSizes), ['sizeFromUrl'], sizeFromUrl => sizeFromUrl);
 
-cascadeObj.derive('allowedColors', ['size', 'config'], (size, config) => {
-    return Cascade.Promise(resolve => {
-        setTimeout(() => {
-            resolve(Object.keys(config[size]));
-        }, 2000);
-    });
-});
+var allowedColorsFactory = jest.fn().mockImplementation((size, config) => Cascade.Promise(resolve => {
+    setTimeout(() => {
+        resolve(Object.keys(config[size]));
+    }, 2000);
+}));
+
+cascadeObj.derive('allowedColors', ['size', 'config'], allowedColorsFactory);
 
 cascadeObj.define('color', ['allowedColors'], allowedColors => Cascade.types.Enum(allowedColors), null, 'Red');
 
@@ -73,4 +74,7 @@ test('test wait async data', () => {
 		allowedColors : ['White', 'Black'],
 		color : 'Black'
 	});
+	
+	//expect(sizeFromUrlFactory).toHaveBeenCalledTimes(1);
+	//expect(allowedColorsFactory).toHaveBeenCalledTimes(1);
 });
