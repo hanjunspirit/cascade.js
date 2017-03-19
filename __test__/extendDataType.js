@@ -1,4 +1,4 @@
-var Cascade = require('../dist/cascade');
+var Cascade = require('..');
 
 function onSetValue(valueToSet, oldValue, min, max){
 	if(typeof valueToSet === 'number'){

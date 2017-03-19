@@ -1,4 +1,4 @@
-var Cascade = require('../dist/cascade');
+var Cascade = require('..');
 var Interger = require('../dist/types/interger');
 
 var cascadeObj = new Cascade();
@@ -33,7 +33,7 @@ cascadeObj.define('quantity', ['stock'], stock => {
 });
 
 
-test('test getStates', () => {
+test('test subscribe', () => {
 	//size = S
 	//color = Green
 	//quantity = 1
