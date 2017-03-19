@@ -1,5 +1,5 @@
 /**
- * Cascade.js 1.0.0 Beta1 | https://github.com/hanjunspirit/cascade.js/blob/master/LICENSE
+ * Cascade.js 1.0.3 | https://github.com/hanjunspirit/cascade.js/blob/master/LICENSE
  */
 'use strict';
 
@@ -320,6 +320,8 @@ class Cascade extends Transaction {
 		this.subscribers = [];
 		
 		this.reinitializeTransaction();
+		
+		this.impactGraph = {};
 	}
 	
 	//define state
@@ -334,6 +336,7 @@ class Cascade extends Transaction {
 		this._checkDeps(deps);
 		
 		this.statesObj[name] = new CascadeDataState(name, deps, factory, initialDeps, initialFactory);
+		this._updateImpactGraph(this.statesObj[name]);
 		this.batchedUpdate(() => {
 			this.adjust(name);
 		});
@@ -350,6 +353,7 @@ class Cascade extends Transaction {
 		this._checkDeps(deps);
 		
 		this.statesObj[name] = new CascadeDataDerive(name, deps, factory);
+		this._updateImpactGraph(this.statesObj[name]);
 		this.batchedUpdate(() => {
 			this.adjust(name);
 		});
@@ -358,8 +362,10 @@ class Cascade extends Transaction {
 	wait(deps, factory){
 		deps = deps || [];
 		this._checkDeps(deps);
+		
 		var name = '__require__' + this._requireIdx++;
 		this.statesObj[name] = new CascadeRequire(name, deps, factory);
+		this._updateImpactGraph(this.statesObj[name]);
 		this.batchedUpdate(() => {
 			this.adjust(name);
 		});
@@ -374,6 +380,34 @@ class Cascade extends Transaction {
 		});
 	}
 	
+	_updateImpactGraph(stateObj){
+		var deps = (stateObj.deps || []).concat(stateObj.initialDeps || []);
+		deps.forEach(nodeName => {
+			var edges = this.impactGraph[nodeName] = this.impactGraph[nodeName] || [];
+			edges.push(stateObj.name);
+		});
+	}
+	
+	_removeInitialDeps(stateObj){
+		var initialDeps = stateObj.initialDeps;
+		delete stateObj.initialDeps;
+		delete stateObj.initialFactory;
+		initialDeps.forEach(nodeName => {
+			var edges = this.impactGraph[nodeName];
+			edges.splice(edges.indexOf(stateObj.name), 1);
+		});
+	}
+	
+	_removeWaitNode(stateObj){
+		if(stateObj && stateObj instanceof CascadeRequire){
+			stateObj.deps.forEach(nodeName => {
+				var edges = this.impactGraph[nodeName];
+				edges.splice(edges.indexOf(stateObj.name), 1);
+			});
+			
+			delete this.statesObj[stateObj.name];
+		}
+	}
 	
 	getStates(){
 		var states = {};
@@ -436,7 +470,7 @@ class Cascade extends Transaction {
 		
 		dirtyChildren.forEach(name => {
 			this.adjust(name);
-			if(this.statesObj[name]){
+			if(this.statesObj[name] && !(this.statesObj[name] instanceof CascadeRequire)){
 				//Record updated states
 				this.updatedStates[name] = this.getState(name);
 			}
@@ -498,8 +532,7 @@ class Cascade extends Transaction {
 				
 				this.states[name] = definition.setter(newValue);
 				
-				delete stateObj.initialDeps;
-				delete stateObj.initialFactory;
+				this._removeInitialDeps(stateObj);
 			}else{
 				//For uninitialized state without an initialFactory or initialized value
 				this.states[name] = definition.setter(this.states[name]);
@@ -517,7 +550,7 @@ class Cascade extends Transaction {
 			var stateValue = this.states[name] = stateObj.factory.apply(null, depsValue);
 			//Handle Promise value
 			if(isPromise(stateValue)){
-				stateValue.then(resolvedValue => {
+				var onThen = resolvedValue => {
 					//When Promise is resolved, setState its resolved value
 					if(stateValue === this.states[name]){
 						this.batchedUpdate(() => {
@@ -535,7 +568,9 @@ class Cascade extends Transaction {
 							this._adjustChildren(name);
 						}, this);
 					}
-				});
+				};
+				
+				stateValue.then(resolvedValue => onThen(resolvedValue), () => onThen(null));
 				//From dirty to pending
 				stateObj.setPending();
 			}else{
@@ -552,21 +587,20 @@ class Cascade extends Transaction {
 					stateObj.factory.apply(null, depsValue);
 				});
 			}
-			delete this.statesObj[name];
+			this._removeWaitNode(this.statesObj[name]);
 		}
 	}
 	
-	getChildren(name, list){
-		list = list || [];
-		var stateObj = this.statesObj[name];
-		
-		for(var _name in this.statesObj){
-			var _stateObj = this.statesObj[_name];
-			if(list.indexOf(_name) === -1 && (_stateObj.deps.indexOf(name) !== -1 || "initialFactory" in _stateObj && _stateObj.initialDeps.indexOf(name) !== -1)){
-				list.push(_name);
-				this.getChildren(_name, list);
-			}
-		}
+	//deep first
+	getChildren(name){
+		var list = [].concat(this.impactGraph[name] || []);
+		list.forEach(nodeName => {
+			this.getChildren(nodeName).forEach(name => {
+				if(list.indexOf(name) === -1){
+					list.push(name);
+				}
+			});
+		});
 		return list;
 	}
 	
