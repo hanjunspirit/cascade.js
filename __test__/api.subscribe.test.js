@@ -107,11 +107,9 @@ test('test subscribe', () => {
 		quantity : 3
 	});
 	
-	/*
 	cascadeObj.define('newProp', null, 55);
 	expect(mockFn).toHaveBeenCalledTimes(4);
 	expect(mockFn).lastCalledWith({
 		newProp : 55
 	});
-	*/
 });

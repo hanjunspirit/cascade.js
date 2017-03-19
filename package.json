@@ -1,6 +1,6 @@
 {
   "name": "cascade.js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Cascade.js is a Javascript library for managing **relational but not derived** states.",
   "main": "./dist/cascade.js",
   "directories": {

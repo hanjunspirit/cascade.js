@@ -1,5 +1,5 @@
 /**
- * Cascade.js 1.0.3 | https://github.com/hanjunspirit/cascade.js/blob/master/LICENSE
+ * Cascade.js 1.0.4 | https://github.com/hanjunspirit/cascade.js/blob/master/LICENSE
  */
 'use strict';
 
@@ -339,6 +339,7 @@ class Cascade extends Transaction {
 		this._updateImpactGraph(this.statesObj[name]);
 		this.batchedUpdate(() => {
 			this.adjust(name);
+			this.updatedStates[name] = this.getState(name);
 		});
 	}
 	
@@ -356,6 +357,7 @@ class Cascade extends Transaction {
 		this._updateImpactGraph(this.statesObj[name]);
 		this.batchedUpdate(() => {
 			this.adjust(name);
+			this.updatedStates[name] = this.getState(name);
 		});
 	}
 	
@@ -366,6 +368,20 @@ class Cascade extends Transaction {
 		var name = '__require__' + this._requireIdx++;
 		this.statesObj[name] = new CascadeRequire(name, deps, factory);
 		this._updateImpactGraph(this.statesObj[name]);
+		this.batchedUpdate(() => {
+			this.adjust(name);
+		});
+	}
+	
+	forceUpdate(name){
+		var stateObj = this.statesObj[name];
+		
+		if(!stateObj || !stateObj.isClean()){
+			return;
+		}
+		
+		stateObj.setDirty();
+		
 		this.batchedUpdate(() => {
 			this.adjust(name);
 		});
