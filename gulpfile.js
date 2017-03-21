@@ -1,6 +1,4 @@
 var gulp = require('gulp');
-var babelify = require("babelify");
-var babel = require("gulp-babel");
 
 var del = require('del');
 var browserify = require('browserify');
@@ -36,7 +34,6 @@ function jsPreProcess(src){
 		  browserify(file.path, {
 		  	standalone : name.substr(0, 1).toUpperCase() + name.substr(1)
 		  })
-		  .transform(babelify)
 		  .bundle(function(err, res) {
 		      err && console.log(err.stack);
 		      file.contents = res;
@@ -54,7 +51,6 @@ gulp.task('js', ['clean'], function() {
 
 gulp.task('types', ['clean'], function() {
 	return gulp.src(paths.types.src)
-	.pipe(babel())
 	.pipe(uglify({preserveComments: 'some'}))
 	.pipe(gulp.dest(paths.types.dist));
 });

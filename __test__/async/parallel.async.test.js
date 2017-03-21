@@ -13,7 +13,7 @@ cascadeObj.define('urlParams', null, {
 	color : 'Red'
 });
 
-var colorFromUrlFactory = jest.fn().mockImplementation(urlParams => Cascade.Promise(resolve => {
+var colorFromUrlFactory = jest.fn().mockImplementation(urlParams => Cascade.async(resolve => {
     setTimeout(() => {
         resolve(urlParams.color);
     }, 1000);
@@ -22,7 +22,7 @@ cascadeObj.derive('colorFromUrl', ['urlParams'], colorFromUrlFactory);
 
 cascadeObj.define('size', ['allowedSizes'], allowedSizes => Cascade.types.Enum(allowedSizes));
 
-var allowedColorsFactory = jest.fn().mockImplementation((size, config) => Cascade.Promise(resolve => {
+var allowedColorsFactory = jest.fn().mockImplementation((size, config) => Cascade.async(resolve => {
     setTimeout(() => {
         resolve(Object.keys(config[size]));
     }, 2000);

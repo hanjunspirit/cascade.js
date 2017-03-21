@@ -26,7 +26,7 @@ test('define state with an async computed default value', () => {
 		size : 'M'
 	});
 	
-	cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.Promise(resolve => {
+	cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.async(resolve => {
         setTimeout(() => {
             resolve(urlParams.size);
         }, 1000);
@@ -43,7 +43,7 @@ test('define an async state with an async default value', () => {
 	var cascadeObj = new Cascade();
 	cascadeObj.define('config', null, config);
 	
-	cascadeObj.derive('allowedSizes', ['config'], config => Cascade.Promise(resolve => {
+	cascadeObj.derive('allowedSizes', ['config'], config => Cascade.async(resolve => {
         setTimeout(() => {
             resolve(Object.keys(config));
         }, 2000);
@@ -53,7 +53,7 @@ test('define an async state with an async default value', () => {
 		size : 'M'
 	});
 	
-	cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.Promise(resolve => {
+	cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.async(resolve => {
         setTimeout(() => {
             resolve(urlParams.size);
         }, 1000);
@@ -62,7 +62,7 @@ test('define an async state with an async default value', () => {
 	cascadeObj.define('size', ['allowedSizes'], (allowedSizes) => Cascade.types.Enum(allowedSizes), ['sizeFromUrl'], sizeFromUrl => sizeFromUrl);
 	expect(cascadeObj.getState('size')).toBe(null);
 	cascadeObj.wait(['size'], size => {
-		expect('size').toBe('aa');;
+		expect(size).toBe('M');
 	});
 	
 	jest.runAllTimers();

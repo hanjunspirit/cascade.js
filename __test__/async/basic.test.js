@@ -13,7 +13,7 @@ cascadeObj.define('size', ['allowedSizes'], allowedSizes => Cascade.types.Enum(a
 
 
 var allowedColorsFactory = jest.fn().mockImplementation((size, config) => {
-    return Cascade.Promise(resolve => {
+    return Cascade.async(resolve => {
         setTimeout(() => {
             resolve(Object.keys(config[size]));
         }, 1000);

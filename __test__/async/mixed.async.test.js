@@ -14,13 +14,13 @@ cascadeObj.define('urlParams', null, {
 	size : 'M'
 });
 
-cascadeObj.derive('colorFromUrl', ['urlParams'], urlParams => Cascade.Promise(resolve => {
+cascadeObj.derive('colorFromUrl', ['urlParams'], urlParams => Cascade.async(resolve => {
     setTimeout(() => {
         resolve(urlParams.color);
     }, 1000);
 }));
 
-cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.Promise(resolve => {
+cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.async(resolve => {
     setTimeout(() => {
         resolve(urlParams.size);
     }, 1500);
@@ -29,7 +29,7 @@ cascadeObj.derive('sizeFromUrl', ['urlParams'], urlParams => Cascade.Promise(res
 cascadeObj.define('size', ['allowedSizes'], allowedSizes => Cascade.types.Enum(allowedSizes), ['sizeFromUrl'], sizeFromUrl => sizeFromUrl);
 
 cascadeObj.derive('allowedColors', ['size', 'config'], (size, config) => {
-    return Cascade.Promise(resolve => {
+    return Cascade.async(resolve => {
         setTimeout(() => {
             resolve(Object.keys(config[size]));
         }, 2000);
