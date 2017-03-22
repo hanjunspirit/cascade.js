@@ -110,7 +110,6 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	//define state
 	define : function(name, deps, factory, initialDeps, initialFactory){
 		deps = deps || [];
-		initialDeps = initialDeps;
 		
 		if(this.statesObj[name]){
 			error('State ${name} is already defined');
