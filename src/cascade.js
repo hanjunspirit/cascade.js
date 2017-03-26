@@ -7,94 +7,19 @@
  */
 'use strict';
 
-var Transaction = require('./Transaction');
+var Transaction = require('./helper/Transaction');
+var UglyPromise = require('./helper/UglyPromise');
+var util = require('./helper/util');
 
-function CascadeNode(name, deps) {
-	this.name = name;
-	this.deps = deps;
-	this.status = STATUS.DIRTY;
-}
+var CascadeNode = require('./nodes/CascadeNode');
+var CascadeDataState = require('./nodes/CascadeDataState');
+var CascadeDataDerive = require('./nodes/CascadeDataDerive');
+var CascadeWait = require('./nodes/CascadeWait');
 
-CascadeNode.prototype = {
-	setDirty : function(){
-		this.status = STATUS.DIRTY;
-	},
-	setPending : function(){
-		if(this.status === STATUS.DIRTY){
-			this.status = STATUS.PENDING;
-		}
-	},
-	setClean : function(){
-		if(this.status === STATUS.DIRTY){
-			this.status = STATUS.CLEAN;
-		}
-	},
-	isClean : function(){
-		return this.status === STATUS.CLEAN;
-	},
-	isPending : function(){
-		return this.status === STATUS.PENDING;
-	},
-	isDirty : function(){
-		return this.status === STATUS.DIRTY;
-	}
-}
-
-var STATUS = {
-	DIRTY : 1,
-	CLEAN : 2,
-	PENDING : 3
-};
-
-//State Class
-function CascadeDataState(name, deps, factory, initialDeps, initialFactory){
-	CascadeNode.call(this, name, deps);
-	if(!name){
-		error('Invalid name in defining state');
-	}
-	if(factory === undefined){
-		error('Invalid factory in defining state');
-	}
-	this.factory = factory;
-	
-	if(initialFactory !== undefined){
-		this.initialDeps = initialDeps || [];
-		this.initialFactory = initialFactory;
-	}
-	
-	this.definition = null;
-}
-_assign(CascadeDataState.prototype, CascadeNode.prototype);
-
-//Derived data Class
-function CascadeDataDerive(name, deps, factory){
-	CascadeNode.call(this, name, deps);
-	if(!name){
-		error('Invalid name in defining derived data');
-	}
-	
-	if(typeof factory !== "function"){
-		error('Invalid factory in defining derived data ' + name);
-	}
-	
-	this.name = name;
-	this.deps = deps;
-	this.factory = factory;
-	
-	this.status = STATUS.DIRTY;
-}
-_assign(CascadeDataDerive.prototype, CascadeNode.prototype);
-
-//cascadeObj.wait Class
-function CascadeRequire(name, deps, factory){
-	CascadeNode.call(this, name, deps);
-	this.factory = factory;
-}
-_assign(CascadeRequire.prototype, CascadeNode.prototype);
+var NodesManager = require('./NodesManager');
 
 //Cascade Class
 function Cascade(){
-	this.statesObj = {};
 	this.states = {};
 	
 	this._requireIdx = 0;
@@ -102,23 +27,13 @@ function Cascade(){
 	this.subscribers = [];
 	
 	this.reinitializeTransaction();
-	
-	this.impactGraph = {};
+	this.reinitializeNodesManager();
 }
 
-_assign(Cascade.prototype, Transaction.Mixin, {
+util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 	//define state
 	define : function(name, deps, factory, initialDeps, initialFactory){
-		deps = deps || [];
-		
-		if(this.statesObj[name]){
-			error('State ${name} is already defined');
-		}
-		
-		this._checkDeps(deps);
-		
-		this.statesObj[name] = new CascadeDataState(name, deps, factory, initialDeps, initialFactory);
-		this._updateImpactGraph(this.statesObj[name]);
+		this.addNode(new CascadeDataState(name, deps, factory, initialDeps, initialFactory));
 		this.batchedUpdate(function(){
 			this.adjust(name);
 			this.updatedStates[name] = this.getState(name);
@@ -127,16 +42,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	
 	//define derived data
 	derive : function(name, deps, factory){
-		deps = deps || [];
-		
-		if(this.statesObj[name]){
-			error('Derived data ${name} is already defined');
-		}
-		
-		this._checkDeps(deps);
-		
-		this.statesObj[name] = new CascadeDataDerive(name, deps, factory);
-		this._updateImpactGraph(this.statesObj[name]);
+		this.addNode(new CascadeDataDerive(name, deps, factory));
 		this.batchedUpdate(function(){
 			this.adjust(name);
 			this.updatedStates[name] = this.getState(name);
@@ -144,12 +50,8 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	},
 	
 	wait : function(deps, factory){
-		deps = deps || [];
-		this._checkDeps(deps);
-		
 		var name = '__require__' + this._requireIdx++;
-		this.statesObj[name] = new CascadeRequire(name, deps, factory);
-		this._updateImpactGraph(this.statesObj[name]);
+		this.addNode(new CascadeWait(name, deps, factory));
 		this.batchedUpdate(function(){
 			this.adjust(name);
 		});
@@ -169,53 +71,12 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 		});
 	},
 	
-	_checkDeps : function(deps){
-		var that = this;
-		//check dependencies
-		arrayForEach(deps, function(depName){
-			if(!that.statesObj.hasOwnProperty(depName)){
-				error('The dependency [' + depName + '] does not exist');
-			}
-		});
-	},
-	
-	_updateImpactGraph : function(stateObj){
-		var deps = (stateObj.deps || []).concat(stateObj.initialDeps || []);
-		var that = this;
-		arrayForEach(deps, function(nodeName){
-			var edges = that.impactGraph[nodeName] = that.impactGraph[nodeName] || [];
-			edges.push(stateObj.name);
-		});
-	},
-	
-	_removeInitialDeps : function(stateObj){
-		var initialDeps = stateObj.initialDeps;
-		delete stateObj.initialDeps;
-		delete stateObj.initialFactory;
-		var that = this;
-		arrayForEach(initialDeps, function(nodeName){
-			var edges = that.impactGraph[nodeName];
-			edges.splice(arrayIndexOf(edges, stateObj.name), 1);
-		});
-	},
-	
-	_removeWaitNode : function(stateObj){
-		if(stateObj && stateObj instanceof CascadeRequire){
-			var that = this;
-			arrayForEach(stateObj.deps, function(nodeName){
-				var edges = that.impactGraph[nodeName];
-				edges.splice(arrayIndexOf(edges, stateObj.name), 1);
-			});
-			
-			delete this.statesObj[stateObj.name];
-		}
-	},
 	
 	getStates : function(){
 		var states = {};
 		for(var name in this.statesObj){
 			var obj = this.statesObj[name];
-			if(obj instanceof CascadeRequire){
+			if(obj instanceof CascadeWait){
 				continue;
 			}
 			states[name] = obj.isClean() ? this.states[name] : null;
@@ -225,7 +86,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	
 	getState : function(name){
 		var stateObj = this.statesObj[name];
-		if(stateObj && stateObj.isClean() && !(stateObj instanceof CascadeRequire)){
+		if(stateObj && stateObj.isClean() && !(stateObj instanceof CascadeWait)){
 			return this.states[name];
 		}else{
 			return null;
@@ -239,11 +100,11 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 		}
 		
 		if(stateObj instanceof CascadeDataDerive){
-			error('You can not set a derived data!');
+			util.error('You can not set a derived data!');
 		}
 		
 		if(stateObj.isPending()){
-			warning('You can\'t set a pending state!');
+			util.warning('You can\'t set a pending state!');
 			return;
 		}
 		
@@ -266,14 +127,14 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	_adjustChildren : function(name){
 		var dirtyChildren = this.getChildren(name);
 		var that = this;
-		arrayForEach(dirtyChildren, function(name){
+		util.arrayForEach(dirtyChildren, function(name){
 			//From clean/pending to dirty
 			that.statesObj[name].setDirty();
 		})
 		
-		arrayForEach(dirtyChildren, function(name){
+		util.arrayForEach(dirtyChildren, function(name){
 			that.adjust(name);
-			if(that.statesObj[name] && !(that.statesObj[name] instanceof CascadeRequire)){
+			if(that.statesObj[name] && !(that.statesObj[name] instanceof CascadeWait)){
 				//Record updated states
 				that.updatedStates[name] = that.getState(name);
 			}
@@ -288,7 +149,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 		}
 		
 		if(!this._isInTransaction){
-			error('adjust calls must be in Transaction');
+			util.error('adjust calls must be in Transaction');
 			return;
 		}
 		
@@ -300,7 +161,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 		}
 		
 		var that = this;
-		var isPending = arraySome(deps, function(name){
+		var isPending = util.arraySome(deps, function(name){
 			that.adjust(name);
 			return that.statesObj[name].isPending();
 		});
@@ -310,7 +171,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 			stateObj.setPending();
 		}else if(stateObj instanceof CascadeDataState){
 			//Get deps first
-			var depsValue = arrayMap(stateObj.deps, function(name){
+			var depsValue = util.arrayMap(stateObj.deps, function(name){
 				return that.states[name];
 			});
 			
@@ -318,14 +179,14 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 			var definition = stateObj.definition = typeof stateObj.factory !== 'function' ? Cascade.types.Fixed(stateObj.factory) : stateObj.factory.apply(null, depsValue);
 			
 			if(!(definition instanceof DataType)){
-				error('Empty definition in state' + name);
+				util.error('Empty definition in state' + name);
 			}
 			
 			//For uninitialized state with an initialFactory, compute its initial value
-			if("initialFactory" in stateObj){
+			if(stateObj.hasOwnProperty("initialFactory")){
 				if(typeof stateObj.initialFactory === "function"){
 					//Get initialDeps first
-					var initialDepsValue = arrayMap(stateObj.initialDeps, function(name){
+					var initialDepsValue = util.arrayMap(stateObj.initialDeps, function(name){
 						return that.states[name];
 					});
 					
@@ -336,7 +197,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 				
 				this.states[name] = definition.setter(newValue);
 				
-				this._removeInitialDeps(stateObj);
+				this.removeInitialDeps(stateObj);
 			}else{
 				//For uninitialized state without an initialFactory or initialized value
 				this.states[name] = definition.setter(this.states[name]);
@@ -347,7 +208,7 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 		}else if(stateObj instanceof CascadeDataDerive){
 			
 			//Get deps first
-			var depsValue = arrayMap(stateObj.deps, function(name){
+			var depsValue = util.arrayMap(stateObj.deps, function(name){
 				return that.states[name];
 			});
 			
@@ -385,33 +246,18 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 				//From dirty to clean
 				stateObj.setClean();
 			}
-		}else if(stateObj instanceof CascadeRequire){
+		}else if(stateObj instanceof CascadeWait){
 			if(typeof stateObj.factory === 'function'){
 				this.waitToExecs.push(function(){
 					//Get deps first
-					var depsValue = arrayMap(stateObj.deps, function(name){
+					var depsValue = util.arrayMap(stateObj.deps, function(name){
 						return that.states[name];
 					});
 					stateObj.factory.apply(null, depsValue);
 				});
 			}
-			this._removeWaitNode(this.statesObj[name]);
+			this.removeNode(this.statesObj[name]);
 		}
-	},
-	
-	//deep first
-	getChildren : function(name){
-		var that = this;
-		var list = [].concat(this.impactGraph[name] || []);
-		arrayForEach(list, function(nodeName){
-			arrayForEach(that.getChildren(nodeName), function(name){
-				if(arrayIndexOf(list, name) === -1){
-					list.push(name);
-				}
-			});
-		});
-		
-		return list;
 	},
 	
 	batchedUpdate : function(callback){
@@ -423,13 +269,13 @@ _assign(Cascade.prototype, Transaction.Mixin, {
 	},
 	
 	subscribe : function(fn){
-		if(arrayIndexOf(this.subscribers, fn) === -1){
+		if(util.arrayIndexOf(this.subscribers, fn) === -1){
 			this.subscribers.push(fn);
 		}
 	},
 	
 	unsubscribe : function(fn){
-		var index = arrayIndexOf(this.subscribers, fn);
+		var index = util.arrayIndexOf(this.subscribers, fn);
 		if(index !== -1){
 			this.subscribers.splice(index, 1);
 		}
@@ -464,74 +310,13 @@ var NOTIFY_SUBSCRIBERS_WRAPPER = {
 		if(keys > 0){
 			var that = this;
 			//excute the subscribers
-			arrayForEach(this.subscribers, function(subscriber){
+			util.arrayForEach(this.subscribers, function(subscriber){
 				subscriber(that.updatedStates);
 			});
 		}
 		this.updatedStates = {};
 	}
 };
-
-function warning(tips){
-	typeof console !== 'undefined' && console.warn(tips);
-}
-
-function error(tips){
-	typeof console !== 'undefined' && console.error(tips);
-	throw new Error(tips);
-}
-
-function arrayForEach(arr, callback){
-	for(var i in arr){
-		callback(arr[i], i);
-	}
-}
-function arraySome(arr, callback){
-	for(var i in arr){
-		if(callback(arr[i], i)){
-			return true;
-		}
-	}
-	return false;
-}
-function arrayMap(arr, callback){
-	var res = [];
-	arrayForEach(arr, function(value, key){
-		res.push(callback(value, key));
-	});
-	return res;
-}
-function arrayIndexOf(arr, toFind){
-	var idx = -1;
-	for(var i = 0; i < arr.length; i++){
-		if(arr[i] === toFind){
-			return i;
-		}
-	}
-	return idx;
-}
-
-
-function _assign(base){
-	var list = Array.prototype.slice.call(arguments, 1);
-	arrayForEach(list, function(obj){
-		for(var i in obj){
-			if(obj.hasOwnProperty(i)){
-				base[i] = obj[i];
-			}
-		}
-	});
-}
-
-function extendClass(Class, Super){
-	var E = function () {};
-	E.prototype = Super.prototype;
-	var prototype = new E();
-
-	_assign(prototype, Class.prototype);
-	Class.prototype = prototype;
-	Class.prototype.constructor = Class;
-}
 
 function DataType(){}
 
@@ -546,7 +331,7 @@ Cascade.extendDataType = function(onSetValue){
 		}
 	}
 	
-	extendClass(extendedDataType, DataType);
+	util.extendClass(extendedDataType, DataType);
 	
 	return function(){
 		return new extendedDataType(Array.prototype.slice.call(arguments));
@@ -574,7 +359,7 @@ Cascade.types.Any = Cascade.extendDataType(function(valueToSet, oldValue){
  * Enum value
  */
 Cascade.types.Enum = Cascade.extendDataType(function(valueToSet, oldValue, enumList){
-	if(arrayIndexOf(enumList, valueToSet) !== -1){
+	if(util.arrayIndexOf(enumList, valueToSet) !== -1){
 		return valueToSet;
 	}else if(oldValue !== undefined){
 		return oldValue;
@@ -583,39 +368,12 @@ Cascade.types.Enum = Cascade.extendDataType(function(valueToSet, oldValue, enumL
 	}
 });
 
-function uglyPromise(callback){
-	this.status = 'Pending';
-	this.onResolveCallback = [];
-	
-	var that = this;
-	function onResolve(resolvedValue){
-		that.status = 'Resolved';
-		for(var i = 0; i < that.onResolveCallback.length; i++){
-			that.onResolveCallback[i](resolvedValue);
-		}
-		that.onResolveCallback[i] = [];
-	}
-	
-	callback(onResolve);
-}
-uglyPromise.prototype.then = function(onResolve){
-	if(this.status === 'Pending'){
-		if(onResolve){
-			this.onResolveCallback.push(onResolve);
-		}
-	}else{
-		if(onResolve){
-			onResolve();
-		}
-	}
-}
-
 Cascade.async = function(callback){
-	return new uglyPromise(callback);
+	return new UglyPromise(callback);
 };
 
-var isPromise = function(obj){
-	return obj instanceof uglyPromise;
+function isPromise(obj){
+	return obj instanceof UglyPromise;
 };
 
 module.exports = Cascade;
