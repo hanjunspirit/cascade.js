@@ -1,12 +1,14 @@
 function uglyPromise(callback){
 	this.status = 'Pending';
 	this.onResolveCallback = [];
+	this.resolvedValue = null;
 	
 	var that = this;
 	function onResolve(resolvedValue){
 		that.status = 'Resolved';
+		that.resolvedValue = resolvedValue;
 		for(var i = 0; i < that.onResolveCallback.length; i++){
-			that.onResolveCallback[i](resolvedValue);
+			that.onResolveCallback[i].call(null, resolvedValue);
 		}
 		that.onResolveCallback[i] = [];
 	}
@@ -20,7 +22,7 @@ uglyPromise.prototype.then = function(onResolve){
 		}
 	}else{
 		if(onResolve){
-			onResolve();
+			onResolve.call(null, this.resolvedValue);
 		}
 	}
 }

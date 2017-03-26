@@ -5,11 +5,15 @@ var CascadeNode = require('./CascadeNode');
 function CascadeDataDerive(name, deps, factory){
 	CascadeNode.call(this, name, deps);
 	if(!name){
-		error('Invalid name in defining derived data');
+		util.error('The [name] param of derive api is invalid');
+	}
+	
+	if(!this.deps.length){
+		util.error('The [deps] param of derive("' + name + '", ...) api should not be empty');
 	}
 	
 	if(typeof factory !== "function"){
-		error('Invalid factory in defining derived data ' + name);
+		util.error('The [factory] param of derive("' + name + '", ...) api should be a function');
 	}
 	
 	this.factory = factory;

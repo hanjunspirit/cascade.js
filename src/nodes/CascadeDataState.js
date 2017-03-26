@@ -5,10 +5,10 @@ var CascadeNode = require('./CascadeNode');
 function CascadeDataState(name, deps, factory, initialDeps, initialFactory){
 	CascadeNode.call(this, name, deps);
 	if(!name){
-		error('Invalid name in defining state');
+		util.error('The [name] param of define api is invalid');
 	}
 	if(factory === undefined){
-		error('Invalid factory in defining state');
+		util.error('The [factory] param of define("' + name + '", ...) api is invalid');
 	}
 	this.factory = factory;
 	

@@ -1,19 +1,16 @@
 function warning(tips){
 	typeof console !== 'undefined' && console.warn(tips);
 }
-
 function error(tips){
-	typeof console !== 'undefined' && console.error(tips);
 	throw new Error(tips);
 }
-
 function arrayForEach(arr, callback){
 	for(var i = 0; i < arr.length; i++){
 		callback(arr[i], i);
 	}
 }
 function arraySome(arr, callback){
-	for(var i in arr){
+	for(var i = 0; i < arr.length; i++){
 		if(callback(arr[i], i)){
 			return true;
 		}
@@ -36,8 +33,12 @@ function arrayIndexOf(arr, toFind){
 	}
 	return idx;
 }
-
-
+function arrayRemove(arr, valueToRemove){
+	var idx = arrayIndexOf(arr, valueToRemove);
+	if(idx !== -1){
+		arr.splice(idx, 1);
+	}
+}
 function assign(base){
 	var list = Array.prototype.slice.call(arguments, 1);
 	arrayForEach(list, function(obj){
@@ -48,7 +49,6 @@ function assign(base){
 		}
 	});
 }
-
 function extendClass(Class, Super){
 	var E = function () {};
 	E.prototype = Super.prototype;
@@ -66,6 +66,7 @@ module.exports = {
 	arraySome : arraySome,
 	arrayMap : arrayMap,
 	arrayIndexOf : arrayIndexOf,
+	arrayRemove : arrayRemove,
 	assign : assign,
 	extendClass : extendClass
 };

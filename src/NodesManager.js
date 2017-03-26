@@ -12,7 +12,7 @@ var Mixin = {
 	},
 	addNode : function(stateObj){
 		if(this.statesObj.hasOwnProperty(stateObj.name)){
-			util.error('The state or drived data [' + name + '] is already defined');
+			util.error('The state or drived data [' + stateObj.name + '] is already defined');
 		}
 		
 		var fullDeps = getDeps(stateObj);
@@ -28,7 +28,7 @@ var Mixin = {
 			var that = this;
 			util.arrayForEach(stateObj.deps, function(depName){
 				var edges = that.impactGraph[depName];
-				edges.splice(util.arrayIndexOf(edges, stateObj.name), 1);
+				util.arrayRemove(edges || [], stateObj.name);
 			});
 			
 			delete this.statesObj[stateObj.name];
@@ -38,9 +38,8 @@ var Mixin = {
 	},
 	removeInitialDeps : function(stateObj){
 		if(stateObj instanceof CascadeDataState){
-			var initialDeps = stateObj.initialDeps;
 			var depsToRemove = [];
-			util.arrayForEach(initialDeps, function(depName){
+			util.arrayForEach(stateObj.initialDeps, function(depName){
 				if(util.arrayIndexOf(stateObj.deps, depName) === -1){
 					depsToRemove.push(depName);
 				}
@@ -51,7 +50,7 @@ var Mixin = {
 			var that = this;
 			util.arrayForEach(depsToRemove, function(depName){
 				var edges = that.impactGraph[depName];
-				edges.splice(util.arrayIndexOf(edges, stateObj.name), 1);
+				util.arrayRemove(edges || [], stateObj.name);
 			});
 		}else{
 			util.error('You can only remove initialDeps of a CascadeDataState object');
@@ -93,7 +92,7 @@ function ensureDeps(statesObj, deps){
 
 //get the deps+initialDeps of a node
 function getDeps(stateObj){
-	var deps = stateObj.deps;
+	var deps = [].concat(stateObj.deps);
 		
 	if(stateObj instanceof CascadeDataState && stateObj.initialDeps){
 		util.arrayForEach(stateObj.initialDeps, function(depName){
