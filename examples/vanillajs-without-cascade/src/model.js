@@ -1,16 +1,9 @@
 'use strict';
+var config = require('../../config');
+
 class model {
 	constructor(){
-		this.config = {
-			S : {
-				Green : 5,
-				Red : 6
-			},
-			M : {
-				White : 13,
-				Black : 15
-			}
-		}
+		this.config = config
 
 		this.size = null;
 		this.color = null;

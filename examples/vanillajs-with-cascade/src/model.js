@@ -1,20 +1,11 @@
 'use strict';
-var Cascade = require('../../');
-//var Cascade = require('../../dist/cascade');
-var Interger = require('../../dist/types/interger');
+var Cascade = require('../../../');
+var Interger = require('../../../dist/types/interger');
+var config = require('../../config');
 
 var cascadeObj = module.exports = new Cascade();
 
-cascadeObj.define('config', null, {
-	S : {
-		Green : 5,
-		Red : 6
-	},
-	M : {
-		White : 13,
-		Black : 15
-	}
-});
+cascadeObj.define('config', null, config);
 
 cascadeObj.derive('allowedSizes', ['config'], config => Object.keys(config));
 
