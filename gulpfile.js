@@ -11,14 +11,10 @@ var paths = {
     cascade : {
     	src: 'src/Cascade.js',
     	dist: 'dist',
-    	dist_min: 'dist',
-    	cwd: './',
     },
     types : {
     	src: 'src/types/*.js',
     	dist: 'dist/types',
-    	dist_min: 'dist/types',
-    	cwd: './',
     },
     dist : 'dist'
 };
