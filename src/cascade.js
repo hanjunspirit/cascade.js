@@ -71,7 +71,6 @@ util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 		});
 	},
 	
-	
 	getStates : function(){
 		var states = {};
 		for(var name in this.statesObj){
@@ -179,7 +178,7 @@ util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 			var definition = stateObj.definition = typeof stateObj.factory !== 'function' ? Cascade.types.Fixed(stateObj.factory) : stateObj.factory.apply(null, depsValue);
 			
 			if(!(definition instanceof DataType)){
-				util.error('Empty definition in state' + name);
+				util.error('Invalid definition was returned in state [' + name + ']');
 			}
 			
 			//For uninitialized state with an initialFactory, compute its initial value

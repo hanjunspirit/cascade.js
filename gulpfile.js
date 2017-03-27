@@ -9,7 +9,7 @@ var path = require('path');
 
 var paths = {
     cascade : {
-    	src: 'src/cascade.js',
+    	src: 'src/Cascade.js',
     	dist: 'dist',
     	dist_min: 'dist',
     	cwd: './',
