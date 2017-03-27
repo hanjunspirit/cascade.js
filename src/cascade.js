@@ -22,7 +22,7 @@ var NodesManager = require('./NodesManager');
 function Cascade(){
 	this.states = {};
 	
-	this._requireIdx = 0;
+	this._waitIdx = 0;
 	
 	this.subscribers = [];
 	
@@ -50,7 +50,7 @@ util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 	},
 	
 	wait : function(deps, factory){
-		var name = '__require__' + this._requireIdx++;
+		var name = '__wait__' + this._waitIdx++;
 		this.addNode(new CascadeWait(name, deps, factory));
 		this.batchedUpdate(function(){
 			this.adjust(name);
@@ -197,7 +197,7 @@ util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 				
 				this.states[name] = definition.setter(newValue);
 				
-				this.removeInitialDeps(stateObj);
+				this.removeInitialDeps(name);
 			}else{
 				//For uninitialized state without an initialFactory or initialized value
 				this.states[name] = definition.setter(this.states[name]);
@@ -256,7 +256,7 @@ util.assign(Cascade.prototype, Transaction.Mixin, NodesManager.Mixin, {
 					stateObj.factory.apply(null, depsValue);
 				});
 			}
-			this.removeNode(this.statesObj[name]);
+			this.removeNode(name);
 		}
 	},
 	

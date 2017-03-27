@@ -23,7 +23,11 @@ var Mixin = {
 		
 		addImpactGraph(this.impactGraph, stateObj.name, fullDeps);
 	},
-	removeNode : function(stateObj){
+	removeNode : function(name){
+		if(!this.statesObj.hasOwnProperty(name)){
+			util.error('You can not removeNode [' + name + '], because it does not exist');
+		}
+		var stateObj = this.statesObj[name];
 		if(stateObj && stateObj instanceof CascadeWait){
 			var that = this;
 			util.arrayForEach(stateObj.deps, function(depName){
@@ -36,7 +40,12 @@ var Mixin = {
 			util.error('You can only remove CascadeWait object');
 		}
 	},
-	removeInitialDeps : function(stateObj){
+	removeInitialDeps : function(name){
+		if(!this.statesObj.hasOwnProperty(name)){
+			util.error('You can not removeInitialDeps [' + name + '], because it does not exist');
+		}
+		
+		var stateObj = this.statesObj[name];
 		if(stateObj instanceof CascadeDataState){
 			var depsToRemove = [];
 			util.arrayForEach(stateObj.initialDeps, function(depName){

@@ -15,7 +15,7 @@ var paths = {
     	cwd: './',
     },
     types : {
-    	src: 'src/types/**/*.js',
+    	src: 'src/types/*.js',
     	dist: 'dist/types',
     	dist_min: 'dist/types',
     	cwd: './',
