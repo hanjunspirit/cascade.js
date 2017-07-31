@@ -16,13 +16,16 @@ function uglyPromise(callback){
 	callback(onResolve);
 }
 uglyPromise.prototype.then = function(onResolve){
+	var that = this;
 	if(this.status === 'Pending'){
 		if(onResolve){
 			this.onResolveCallback.push(onResolve);
 		}
 	}else{
 		if(onResolve){
-			onResolve.call(null, this.resolvedValue);
+			setTimeout(function(){
+				onResolve.call(null, that.resolvedValue);
+			})
 		}
 	}
 }

@@ -13,7 +13,7 @@
     "gulp": "^3.9.1",
     "gulp-rename": "^1.2.2",
     "gulp-uglify": "^2.1.0",
-    "jest": "^19.0.2",
+    "jest": "^20.0.4",
     "through2": "^2.0.3"
   },
   "scripts": {
